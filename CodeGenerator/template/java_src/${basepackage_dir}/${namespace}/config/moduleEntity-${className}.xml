@@ -1,0 +1,28 @@
+<#include "/custom.include">
+<#include "/java_copyright.include">
+<#assign className = table.className>   
+<#assign classNameLower = className?uncap_first>
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE configuration PUBLIC "-//mybatis.org//DTD SQL Map Config 3.0//EN"  
+	"http://mybatis.org/dtd/mybatis-3-config.dtd">
+<configuration>
+	<typeAliases>
+		<typeAlias type="com.ego.util.Page" alias="Page"/>
+		
+		<typeAlias type="com.ego.${namespace}.entity.${className}" alias="${className}"/>
+		
+		
+	</typeAliases>
+	<plugins>
+		<plugin interceptor="com.ego.util.PagePlugin">
+			<property name="dialect" value="oracle"/>
+			<property name="pageSqlId" value=".*ConditionPage.*"/>
+		</plugin>
+	</plugins>
+	<mappers>
+	
+		<mapper resource="com/ego/${namespace}/mapper/${className}.xml"/>
+		
+	</mappers>
+	
+</configuration>

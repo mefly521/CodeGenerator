@@ -1,0 +1,122 @@
+<#include "/macro.include"/>
+<#include "/custom.include"/>
+<#assign className = table.className>   
+<#assign classNameFirstLower = table.classNameFirstLower>   
+<#assign basepackage = basepackage>   
+<#assign namespace = namespace>
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+	"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<#macro mapperEl value>${"#{"}${value}}</#macro>
+<mapper namespace="${basepackage}.${namespace}.dao.${className}Mapper">
+
+	<!-- 用于select查询公用抽取的列 -->
+	<sql id="${className}_columns">
+	    <![CDATA[
+		<#list table.columns as column>
+		<#if (column_index%5 = 0 )&&(column_index>0)>
+		
+		</#if>
+			${column.sqlName} as ${column.sqlName}<#if column_has_next>,</#if>
+		</#list>
+	    ]]>
+	</sql>
+	<!-- 字段与属性映射 -->
+	<resultMap type="${basepackage}.${namespace}.pojo.${className}" id="${classNameFirstLower}Map">
+		<#list table.compositeIdColumns as column>
+		<id column="${column.sqlName}" property="${column.columnNameFirstLower}"/>
+		</#list>
+		<#list table.notPkColumns as column>
+	    <result column="${column.sqlName}" property="${column.columnNameFirstLower}"/>
+        </#list>
+	</resultMap>
+	<!-- 翻页查询 -->
+	<select id="findByConditionPage" resultMap="${classNameFirstLower}Map" parameterType="${basepackage}.${namespace}.vo.${className}VO">
+		select <include refid="${className}_columns" /> from ${table.sqlName}
+		<where>
+		<#list table.columns as column>
+		<#if !column.isDateTimeColumn>
+			<if test="${column.columnNameFirstLower} != null " >and ${column.sqlName} =${"#"+"{"+"${column.columnNameFirstLower}"+",jdbcType=${column.getJdbcType()}"+"}"}</if>
+		</#if>
+       	</#list>
+		</where>
+		<if test="orderBy!=null and orderBy!=''">
+		ORDER BY ${"$"+"{orderBy}"}
+		</if>
+		<if test="order!=null and order!=''">
+		${"$"+"{order}"}
+		</if>
+	</select>
+	<!-- 查询全部 -->
+	<select id="findAll" resultMap="${classNameFirstLower}Map" parameterType="String">
+		select <include refid="${className}_columns" /> from ${table.sqlName}
+		<if test="sorter!=null and sorter!=''">
+			ORDER BY ${"$"+"{"+"sorter"+"}"}
+		</if>
+	</select>
+	<!-- 查询单条记录 -->
+	<select id="findBy<#list table.compositeIdColumns as c>${c.columnName}<#if c_has_next>And</#if></#list>" resultMap="${classNameFirstLower}Map" parameterType="${basepackage}.${namespace}.pojo.${className}">
+		select <include refid="${className}_columns" /> 
+		from ${table.sqlName}
+		where <#list table.compositeIdColumns as column>
+        	${column.sqlName} =${"#"+"{"+"${column.columnNameFirstLower}"+",jdbcType=${column.getJdbcType()}"+"}"}
+		<#if column_has_next>
+		AND  </#if>
+		</#list>
+	</select>
+
+	<!-- 添加一条记录 -->
+	<insert id="add" parameterType="${basepackage}.${namespace}.pojo.${className}">
+	insert INTO ${table.sqlName} (
+		<#list table.columns as column>
+		<#if column.columnNameFirstLower !="id" >
+		${column.sqlName} <#if column_has_next>,</#if>
+		</#if>
+		</#list>
+	) VALUES (
+		<#list table.columns as column>
+		<#if column.columnNameFirstLower !="id" >
+		${"#"+"{"+"${column.columnNameFirstLower}"+",jdbcType=${column.getJdbcType()}"+"}"}<#if column_has_next>,</#if>
+		</#if>
+		</#list>
+	)
+	</insert>
+	<!-- 修改一条记录 -->
+	<update id="update" parameterType="${basepackage}.${namespace}.pojo.${className}">
+		update ${table.sqlName}
+		<set>
+		<#list table.notPkColumns as column>
+		<if test="${column.sqlName} != null">
+		 ${column.sqlName} =${"#"+"{"+"${column.columnNameFirstLower}"+",jdbcType=${column.getJdbcType()}"+"}"}<#if column_has_next>,</#if>
+		</if>
+        </#list>
+		</set>
+		where 
+		<#list table.compositeIdColumns as column>
+			 ${column.sqlName} = ${"#"+"{"+"${column.columnNameFirstLower}"+",jdbcType=${column.getJdbcType()}"+"}"}
+		<#if column_has_next>
+		and</#if>
+        </#list>
+	</update>
+	<!-- 删除一条记录 -->
+	<delete id="delete" parameterType="${basepackage}.${namespace}.pojo.${className}">
+		delete from ${table.sqlName} 
+		where
+		<#list table.compositeIdColumns as column>
+			${column.sqlName} = ${"#"+"{"+"${column.columnNameFirstLower}"+",jdbcType=${column.getJdbcType()}"+"}"}
+		<#if column_has_next>
+		and</#if>
+        </#list>
+	</delete>
+		<!-- 批量删除 -->
+	<delete id="batchDelete" parameterType="List">
+		<foreach item="item" index="index" collection="list" open="begin" close=";end;" separator =";">
+			delete from <include refid="db_scheme"/>.${table.sqlName}
+			id in (
+			<foreach collection="ids" item="id" separator=",">
+				${"#"+"{id}"}
+			</foreach>
+			)
+		</foreach>
+	</delete>
+</mapper>

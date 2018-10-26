@@ -1,0 +1,302 @@
+<#include "/macro.include"/>
+<#include "/custom.include"/>
+<#assign className = table.className>   
+<#assign classNameFirstLower = table.classNameFirstLower>   
+<#assign basepackage = basepackage>   
+<#assign namespace = namespace>
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" 
+	"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<#macro mapperEl value>${"#{"}${value}}</#macro>
+<mapper namespace="${basepackage}.${namespace}.mapper.${className}Mapper">
+	<!-- 数据库用户名，读取静态常量，可以改为具体用户名-->
+	<sql id="db_scheme">
+		<![CDATA[${dbName}]]>
+	</sql>
+	<!-- 用于select查询公用抽取的列 -->
+	<sql id="${className}_columns">
+	    <![CDATA[
+		<#list table.columns as column>
+		<#if (column_index%5 = 0 )&&(column_index>0)>
+		
+		</#if>
+			T1.${column.sqlName} as ${column.sqlName}<#if column_has_next>,</#if>
+		</#list>
+	    ]]>
+	</sql>
+	<!-- 字段与属性映射 -->
+	<resultMap type="${basepackage}.${namespace}.entity.${className}" id="${classNameFirstLower}Map">
+		<#list table.compositeIdColumns as column>
+		<id column="${column.sqlName}" property="${column.columnNameFirstLower}"/>
+		</#list>
+		<#list table.notPkColumns as column>
+	    <result column="${column.sqlName}" property="${column.columnNameFirstLower}"/>
+        </#list>
+	</resultMap>
+	<!-- 翻页查询 -->
+	<select id="findByConditionPage" resultMap="${classNameFirstLower}Map" parameterType="Page">
+		select <include refid="${className}_columns" /> from <include refid="db_scheme"/>.${table.sqlName} T1
+		where 1=1
+		<#list table.columns as column>
+		<#if !column.isDateTimeColumn>
+		<if test="params.${column.columnNameLower}!=null and params.${column.columnNameLower}!=''">
+			<#if column.getJdbcType() = "VARCHAR">
+				AND T1.${column.sqlName} = ${"#"+"{params."+"${column.columnNameFirstLower}"+",jdbcType=${column.sqlTypeName?replace(\"2\",\"\")}"+"}"} 
+			</#if>
+			<#if (column.getJdbcType() = "DECIMAL") && (column.decimalDigits = 0) >
+				AND T1.${column.sqlName} = ${"#"+"{params."+"${column.columnNameFirstLower}"+",jdbcType=${column.sqlTypeName?replace(\"NUMBER\",\"INTEGER\")}"+"}"} 
+			</#if>
+			<#if (column.getJdbcType() = "DECIMAL") && (column.decimalDigits > 0) >
+				AND T1.${column.sqlName} = ${"#"+"{params."+"${column.columnNameFirstLower}"+",jdbcType=${column.sqlTypeName?replace(\"NUMBER\",\"DOUBLE\")}"+"}"} 
+			</#if>
+		</if>
+		<if test="params.like${column.columnName}!=null and params.like${column.columnName}!=''">
+			<#if column.getJdbcType() = "VARCHAR">
+				AND T1.${column.sqlName} like '%'||${"#"+"{params.like"+"${column.columnName}"+",jdbcType=${column.sqlTypeName?replace(\"2\",\"\")}"+"}"}||'%' 
+			</#if>
+			<#if (column.getJdbcType() = "DECIMAL") && (column.decimalDigits = 0) >
+				AND T1.${column.sqlName} like '%'||${"#"+"{params.like"+"${column.columnName}"+",jdbcType=${column.sqlTypeName?replace(\"NUMBER\",\"INTEGER\")}"+"}"}||'%' 
+			</#if>
+			<#if (column.getJdbcType() = "DECIMAL") && (column.decimalDigits > 0) >
+				AND T1.${column.sqlName} like '%'||${"#"+"{params.like"+"${column.columnName}"+",jdbcType=${column.sqlTypeName?replace(\"NUMBER\",\"DOUBLE\")}"+"}"}||'%' 
+			</#if>
+		</if>
+		</#if>
+		<#if column.isDateTimeColumn>
+		<if test="params.${column.columnNameLower}String!=null and params.${column.columnNameLower}String!=''">
+				AND T1.${column.sqlName} = ${"to_date(#"+"{params."+"${column.columnNameFirstLower}String"+",jdbcType=VARCHAR"+"},'yyyy-MM-dd')"}
+		</if>
+		<if test="params.start${column.columnName}!=null and params.start${column.columnName}!=''">
+				AND T1.${column.sqlName} >= ${"to_date(#"+"{params.start"+"${column.columnName}"+",jdbcType=VARCHAR},'yyyy-MM-dd')"}
+		</if> 
+		<if test="params.end${column.columnName}!=null and params.end${column.columnName}!=''">
+				AND T1.${column.sqlName} <![CDATA[< ]]>${"to_date(#"+"{params.end"+"${column.columnName}"+",jdbcType=VARCHAR},'yyyy-MM-dd')"}
+		</if>
+		</#if>
+       	</#list>
+       	
+		<if test="params.sorter!=null and params.sorter!=''">
+			ORDER BY T1.${"$"+"{"+"params.sorter"+"}"}
+		</if>
+	</select>
+	<!-- 查询全部 -->
+	<select id="findAll" resultMap="${classNameFirstLower}Map" parameterType="String">
+		select <include refid="${className}_columns" /> from <include refid="db_scheme"/>.${table.sqlName} T1
+		<if test="sorter!=null and sorter!=''">
+			ORDER BY T1.${"$"+"{"+"sorter"+"}"}
+		</if>
+	</select>
+	<!-- 查询单条记录 -->
+	<select id="findBy<#list table.compositeIdColumns as c>${c.columnName}<#if c_has_next>And</#if></#list>" resultMap="${classNameFirstLower}Map" parameterType="${basepackage}.${namespace}.entity.${className}">
+		select <include refid="${className}_columns" /> 
+		from <include refid="db_scheme"/>.${table.sqlName} T1
+		where <#list table.compositeIdColumns as column>
+        	T1.${column.sqlName} = 
+       	<#if !column.isDateTimeColumn>
+        	<#if column.getJdbcType() = "VARCHAR">
+				${"#"+"{"+"${column.columnNameFirstLower}"+",jdbcType=${column.sqlTypeName?replace(\"2\",\"\")}"+"}"}
+			</#if>
+			<#if (column.getJdbcType() = "DECIMAL") && (column.decimalDigits = 0) >
+				${"#"+"{"+"${column.columnNameFirstLower}"+",jdbcType=${column.sqlTypeName?replace(\"NUMBER\",\"INTEGER\")}"+"}"}
+			</#if>
+			<#if (column.getJdbcType() = "DECIMAL") && (column.decimalDigits > 0) >
+				${"#"+"{"+"${column.columnNameFirstLower}"+",jdbcType=${column.sqlTypeName?replace(\"NUMBER\",\"DOUBLE\")}"+"}"}
+			</#if>
+		</#if><#if column_has_next>
+		AND  </#if>
+		</#list>
+	</select>
+<#list table.columns as column>
+	<#if (column.isUnique()) && (!column.isPk())  >
+	<!-- 查询单条记录 -->
+	<select id="findBy${column.columnName}" resultMap="${classNameFirstLower}Map" parameterType="${column.javaType}">
+		select <include refid="${className}_columns" /> 
+		from <include refid="db_scheme"/>.${table.sqlName} T1
+		where 
+        	T1.${column.sqlName} = ${"#"+"{"+"${column.columnNameFirstLower}"+",jdbcType=${column.sqlTypeName?replace(\"2\",\"\")}"+"}"}
+	</select>
+	</#if>
+</#list>
+	<!-- 批量添加 -->
+	<insert id="batchAdd" parameterType="List">
+		insert INTO <include refid="db_scheme"/>.${table.sqlName} (
+		<#list table.columns as column>
+        	${column.sqlName} <#if column_has_next>,</#if>
+        </#list>
+		) 
+		<foreach item="item" index="index" collection="list"  separator ="union all">
+			select 
+			<#list table.columns as column>
+		<#if !column.isDateTimeColumn>
+			<#if column.getJdbcType() = "VARCHAR">
+				${"#"+"{item."+"${column.columnNameFirstLower}"+",jdbcType=${column.sqlTypeName?replace(\"2\",\"\")}"+"}"} <#if column_has_next>,</#if> 
+			</#if>
+			<#if (column.getJdbcType() = "DECIMAL") && (column.decimalDigits = 0) >
+				${"#"+"{item."+"${column.columnNameFirstLower}"+",jdbcType=${column.sqlTypeName?replace(\"NUMBER\",\"INTEGER\")}"+"}"} <#if column_has_next>,</#if>
+			</#if>
+			<#if (column.getJdbcType() = "DECIMAL") && (column.decimalDigits > 0) >
+				${"#"+"{item."+"${column.columnNameFirstLower}"+",jdbcType=${column.sqlTypeName?replace(\"NUMBER\",\"DOUBLE\")}"+"}"} <#if column_has_next>,</#if>
+			</#if>
+		</#if>
+			<#if column.isDateTimeColumn>
+				${"#"+"{item."+"${column.columnNameFirstLower}"+",jdbcType=TIMESTAMP"+"}"} <#if column_has_next>,</#if>
+			</#if>
+        	</#list>
+			 from dual
+		</foreach>
+	</insert>
+	<!-- 添加一条记录 -->
+	<insert id="add" parameterType="${basepackage}.${namespace}.entity.${className}">
+		insert INTO <include refid="db_scheme"/>.${table.sqlName} (
+		<#list table.columns as column>
+        	${column.sqlName} <#if column_has_next>,</#if>
+        </#list>
+		) VALUES (
+        <#list table.columns as column>
+       	<#if !column.isDateTimeColumn>
+        	<#if column.getJdbcType() = "VARCHAR">
+				${"#"+"{"+"${column.columnNameFirstLower}"+",jdbcType=${column.sqlTypeName?replace(\"2\",\"\")}"+"}"} <#if column_has_next>,</#if>
+			</#if>
+			<#if (column.getJdbcType() = "DECIMAL") && (column.decimalDigits = 0) >
+				${"#"+"{"+"${column.columnNameFirstLower}"+",jdbcType=${column.sqlTypeName?replace(\"NUMBER\",\"INTEGER\")}"+"}"} <#if column_has_next>,</#if>
+			</#if>
+			<#if (column.getJdbcType() = "DECIMAL") && (column.decimalDigits > 0) >
+				${"#"+"{"+"${column.columnNameFirstLower}"+",jdbcType=${column.sqlTypeName?replace(\"NUMBER\",\"DOUBLE\")}"+"}"} <#if column_has_next>,</#if>
+			</#if>
+		</#if>
+			<#if column.isDateTimeColumn>
+				${"#"+"{"+"${column.columnNameFirstLower}"+",jdbcType=TIMESTAMP"+"}"} <#if column_has_next>,</#if>
+			</#if>
+        </#list>   
+        )
+	</insert>
+	<!-- 批量修改 -->
+	<update id="batchUpdate" parameterType="List">
+		<foreach item="item" index="index" collection="list" open="begin" close=";end;" separator =";">
+			update <include refid="db_scheme"/>.${table.sqlName} 
+ 			<set>
+				<#list table.notPkColumns as column>
+		<#if !column.isDateTimeColumn>
+			<#if column.getJdbcType() = "VARCHAR">
+				${column.sqlName} = ${"#"+"{item."+"${column.columnNameFirstLower}"+",jdbcType=${column.sqlTypeName?replace(\"2\",\"\")}"+"}"} <#if column_has_next>,</#if> 
+			</#if>
+			<#if (column.getJdbcType() = "DECIMAL") && (column.decimalDigits = 0) >
+				${column.sqlName} = ${"#"+"{item."+"${column.columnNameFirstLower}"+",jdbcType=${column.sqlTypeName?replace(\"NUMBER\",\"INTEGER\")}"+"}"} <#if column_has_next>,</#if> 
+			</#if>
+			<#if (column.getJdbcType() = "DECIMAL") && (column.decimalDigits > 0) >
+				${column.sqlName} = ${"#"+"{item."+"${column.columnNameFirstLower}"+",jdbcType=${column.sqlTypeName?replace(\"NUMBER\",\"DOUBLE\")}"+"}"} <#if column_has_next>,</#if> 
+			</#if>
+		</#if>
+			<#if column.isDateTimeColumn>
+				${column.sqlName} = ${"#"+"{item."+"${column.columnNameFirstLower}"+",jdbcType=TIMESTAMP"+"}"} <#if column_has_next>,</#if>
+			</#if>
+		        </#list>
+			</set>
+			<where>
+				<#list table.compositeIdColumns as column>
+		<#if !column.isDateTimeColumn>
+			<#if column.getJdbcType() = "VARCHAR">
+				${column.sqlName} = ${"#"+"{item."+"${column.columnNameFirstLower}"+",jdbcType=${column.sqlTypeName?replace(\"2\",\"\")}"+"}"}
+			</#if>
+			<#if (column.getJdbcType() = "DECIMAL") && (column.decimalDigits = 0) >
+				${column.sqlName} = ${"#"+"{item."+"${column.columnNameFirstLower}"+",jdbcType=${column.sqlTypeName?replace(\"NUMBER\",\"INTEGER\")}"+"}"}
+			</#if>
+			<#if (column.getJdbcType() = "DECIMAL") && (column.decimalDigits > 0) >
+				${column.sqlName} = ${"#"+"{item."+"${column.columnNameFirstLower}"+",jdbcType=${column.sqlTypeName?replace(\"NUMBER\",\"DOUBLE\")}"+"}"} 
+			</#if>
+		</#if>
+		<#if column.isDateTimeColumn>
+				${column.sqlName} = ${"#"+"{item."+"${column.columnNameFirstLower}"+",jdbcType=TIMESTAMP"+"}"} 
+		</#if><#if column_has_next>
+			and</#if>
+		        </#list>
+			</where>
+		</foreach>
+	</update>
+	<!-- 修改一条记录 -->
+	<update id="update" parameterType="${basepackage}.${namespace}.entity.${className}">
+		update <include refid="db_scheme"/>.${table.sqlName} set 
+		<#list table.notPkColumns as column>
+	<#if !column.isDateTimeColumn>
+		<#if column.getJdbcType() = "VARCHAR">
+			 ${column.sqlName} = ${"#"+"{"+"${column.columnNameFirstLower}"+",jdbcType=${column.sqlTypeName?replace(\"2\",\"\")}"+"}"} <#if column_has_next>,</#if> 
+		</#if>
+		<#if (column.getJdbcType() = "DECIMAL") && (column.decimalDigits = 0) >
+			 ${column.sqlName} = ${"#"+"{"+"${column.columnNameFirstLower}"+",jdbcType=${column.sqlTypeName?replace(\"NUMBER\",\"INTEGER\")}"+"}"} <#if column_has_next>,</#if>
+		</#if>
+		<#if (column.getJdbcType() = "DECIMAL") && (column.decimalDigits > 0) >
+			 ${column.sqlName} = ${"#"+"{"+"${column.columnNameFirstLower}"+",jdbcType=${column.sqlTypeName?replace(\"NUMBER\",\"DOUBLE\")}"+"}"} <#if column_has_next>,</#if>
+		</#if>
+	</#if>
+		<#if column.isDateTimeColumn>
+			 ${column.sqlName} = ${"#"+"{"+"${column.columnNameFirstLower}"+",jdbcType=TIMESTAMP"+"}"} <#if column_has_next>,</#if>
+		</#if>
+        </#list>
+		where 
+		<#list table.compositeIdColumns as column>
+	<#if !column.isDateTimeColumn>
+		<#if column.getJdbcType() = "VARCHAR">
+			 ${column.sqlName} = ${"#"+"{"+"${column.columnNameFirstLower}"+",jdbcType=${column.sqlTypeName?replace(\"2\",\"\")}"+"}"}
+		</#if>
+		<#if (column.getJdbcType() = "DECIMAL") && (column.decimalDigits = 0) >
+			 ${column.sqlName} = ${"#"+"{"+"${column.columnNameFirstLower}"+",jdbcType=${column.sqlTypeName?replace(\"NUMBER\",\"INTEGER\")}"+"}"}
+		</#if>
+		<#if (column.getJdbcType() = "DECIMAL") && (column.decimalDigits > 0) >
+			 ${column.sqlName} = ${"#"+"{"+"${column.columnNameFirstLower}"+",jdbcType=${column.sqlTypeName?replace(\"NUMBER\",\"DOUBLE\")}"+"}"}
+		</#if>
+	</#if>
+	<#if column.isDateTimeColumn>
+			${column.sqlName} = ${"#"+"{"+"${column.columnNameFirstLower}"+",jdbcType=TIMESTAMP"+"}"}
+	</#if><#if column_has_next>
+		and</#if>
+        </#list>
+	</update>
+	<!-- 批量删除 -->
+	<delete id="batchDelete" parameterType="List">
+		<foreach item="item" index="index" collection="list" open="begin" close=";end;" separator =";">
+			delete from <include refid="db_scheme"/>.${table.sqlName} 
+		<where>
+		<#list table.compositeIdColumns as column>
+		<#if !column.isDateTimeColumn>
+			<#if column.getJdbcType() = "VARCHAR">
+				${column.sqlName} = ${"#"+"{item."+"${column.columnNameFirstLower}"+",jdbcType=${column.sqlTypeName?replace(\"2\",\"\")}"+"}"}
+			</#if>
+			<#if (column.getJdbcType() = "DECIMAL") && (column.decimalDigits = 0) >
+				${column.sqlName} = ${"#"+"{item."+"${column.columnNameFirstLower}"+",jdbcType=${column.sqlTypeName?replace(\"NUMBER\",\"INTEGER\")}"+"}"}
+			</#if>
+			<#if (column.getJdbcType() = "DECIMAL") && (column.decimalDigits > 0) >
+				${column.sqlName} = ${"#"+"{item."+"${column.columnNameFirstLower}"+",jdbcType=${column.sqlTypeName?replace(\"NUMBER\",\"DOUBLE\")}"+"}"} 
+			</#if>
+		</#if>
+		<#if column.isDateTimeColumn>
+				${column.sqlName} = ${"#"+"{item."+"${column.columnNameFirstLower}"+",jdbcType=TIMESTAMP"+"}"} 
+		</#if>
+		        <#if column_has_next>
+			and</#if>
+		        </#list>
+		</where>
+		</foreach>
+	</delete>
+	<!-- 删除一条记录 -->
+	<delete id="delete" parameterType="${basepackage}.${namespace}.entity.${className}">
+		delete from <include refid="db_scheme"/>.${table.sqlName} 
+		where 
+		<#list table.compositeIdColumns as column>
+		<#if !column.isDateTimeColumn>
+		<#if column.getJdbcType() = "VARCHAR">
+			 ${column.sqlName} = ${"#"+"{"+"${column.columnNameFirstLower}"+",jdbcType=${column.sqlTypeName?replace(\"2\",\"\")}"+"}"}
+		</#if>
+		<#if (column.getJdbcType() = "DECIMAL") && (column.decimalDigits = 0) >
+			 ${column.sqlName} = ${"#"+"{"+"${column.columnNameFirstLower}"+",jdbcType=${column.sqlTypeName?replace(\"NUMBER\",\"INTEGER\")}"+"}"}
+		</#if>
+		<#if (column.getJdbcType() = "DECIMAL") && (column.decimalDigits > 0) >
+			 ${column.sqlName} = ${"#"+"{"+"${column.columnNameFirstLower}"+",jdbcType=${column.sqlTypeName?replace(\"NUMBER\",\"DOUBLE\")}"+"}"}
+		</#if>
+		</#if>
+		<#if column.isDateTimeColumn>
+			${column.sqlName} = ${"#"+"{"+"${column.columnNameFirstLower}"+",jdbcType=TIMESTAMP"+"}"}
+		</#if><#if column_has_next>
+		and</#if>
+        </#list>
+	</delete>
+</mapper>

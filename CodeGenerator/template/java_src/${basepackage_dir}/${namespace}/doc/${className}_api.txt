@@ -1,0 +1,259 @@
+<#include "/macro.include"/>
+<#include "/java_copyright.include">
+<#assign className = table.className>   
+<#assign classNameLower = className?uncap_first> 
+<#assign namespace = namespace>
+#
+# ${table.tableAlias}的相关请求
+# @author 陶富
+#
+//菜单语句
+insert into sso_app.t_menu
+  (ID,
+   CODE,
+   NAME,
+   APP_ID,
+   PARENT_ID,
+   REQUEST_URL,
+   ORDER_NO,
+   STATE,
+   REMARK,
+   ICON)
+values
+  ('case_${namespace}_${table.classNameFirstLower}',
+   'case_${namespace}_${table.classNameFirstLower}',
+   '${table.tableAlias}',
+   'case_supervision',
+   'case_${namespace}',
+   '/view/${namespace}/${table.classNameFirstLower}_list.jsp',
+   60,
+   '1',
+   '${table.tableAlias}',
+   'treeNode');
+
+
+
+1.查询${table.tableAlias}集合
+请求url:
+HealthInquiry/${className}/findByCondition
+
+请求params:
+request.getParameter("pageIndex");//大于等于0的正整数  0是第一页，1是第二页
+request.getParameter("pageSize");//每页加载的数据条数，默认值10
+request.getParameter("sortField");//排序字段
+request.getParameter("sortOrder");//排序方式  asc升序  desc降序
+<#list table.columns as column>
+request.getParameter("${column.columnNameLower}");//${column.columnAlias}
+</#list>
+成功返回：
+{
+    "successful": true,
+    "resultMsg": "",
+    "total":"1",  
+    "data": [{
+        <#list table.columns as column>
+        "${column.columnNameLower}": "${column.columnAlias}",
+        </#list>
+    }]
+}
+
+错误返回：
+{
+    "successful":false,
+    "resultMsg":"查询失败，失败原因：n",
+    "data":{errorCode:10001},
+    "type":"error"
+}
+
+字段说明：
+successful:请求成功或失败的标识，成功为true,失败为false
+resultMsg:请求失败的后台提示信息
+total:返回数据集合的总数
+data:返回的数据集合，是数组[]，每个对象为{}里的属性
+errorCode:后台约定的错误代码，只有需要前台业务逻辑处理的才返回，无逻辑处理则不返回
+type：标识错误类型，冗余字段
+data内的属性字段：
+<#list table.columns as column>
+    ${column.columnNameLower}：${column.columnAlias}  <@generateJavaTypeByColumn column/> ;
+</#list>
+
+2.保存或更新${table.tableAlias}数据
+请求url:
+HealthInquiry/${className}/saveOrUpdate
+
+请求params:
+<#list table.columns as column>
+request.getParameter("${column.columnNameLower}");//${column.columnAlias}
+</#list>
+成功返回：
+{
+    "successful": true,
+    "resultMsg": "",
+    "total":"1",  
+    "data": {
+        <#list table.columns as column>
+        "${column.columnNameLower}": "${column.columnAlias}",
+        </#list>
+    }
+}
+
+错误返回：
+{
+    "successful":false,
+    "resultMsg":"保存或更新失败，失败原因：n",
+    "data":{errorCode:10001},
+    "type":"error"
+}
+
+字段说明：
+successful:请求成功或失败的标识，成功为true,失败为false
+resultMsg:请求失败的后台提示信息
+total:返回数据集合的总数
+data:返回的数据对象
+errorCode:后台约定的错误代码，只有需要前台业务逻辑处理的才返回，无逻辑处理则不返回
+type：标识错误类型，冗余字段
+data内的属性字段：
+<#list table.columns as column>
+    ${column.columnNameLower}：${column.columnAlias}  <@generateJavaTypeByColumn column/> ;
+</#list>
+
+3.单个查询${table.tableAlias}
+请求url:
+HealthInquiry/${className}/findById
+
+请求params:
+request.getParameter("<#list table.pkColumns as column>${column.columnNameLower}</#list>");//主键ID
+成功返回：
+{
+    "successful": true,
+    "resultMsg": "",
+    "total":"1",  
+    "data": {
+        <#list table.columns as column>
+        "${column.columnNameLower}": "${column.columnAlias}",
+        </#list>
+    }
+}
+
+错误返回：
+{
+    "successful":false,
+    "resultMsg":"查询失败，失败原因：n",
+    "data":{errorCode:10001},
+    "type":"error"
+}
+
+字段说明：
+successful:请求成功或失败的标识，成功为true,失败为false
+resultMsg:请求失败的后台提示信息
+total:返回数据集合的总数
+data:返回的数据对象
+errorCode:后台约定的错误代码，只有需要前台业务逻辑处理的才返回，无逻辑处理则不返回
+type：标识错误类型，冗余字段
+data内的属性字段：
+<#list table.columns as column>
+    ${column.columnNameLower}：${column.columnAlias}  <@generateJavaTypeByColumn column/> ;
+</#list>
+
+4.批量删除${table.tableAlias}
+请求url:
+HealthInquiry/${className}/batchDelete
+
+请求params:
+request.getParameterValues("<#list table.pkColumns as column>${column.columnNameLower}</#list>s");//主键ID集合
+成功返回：
+{
+    "successful": true,
+    "resultMsg": "删除成功",
+    "total":"1",  
+    "data": [{
+        <#list table.pkColumns as column>
+        "${column.columnNameLower}":"${column.columnAlias}"
+        </#list>
+    }]
+}
+
+错误返回：
+{
+    "successful":false,
+    "resultMsg":"删除失败，失败原因：n",
+    "data":{errorCode:10001},
+    "type":"error"
+}
+
+字段说明：
+successful:请求成功或失败的标识，成功为true,失败为false
+resultMsg:请求失败的后台提示信息
+total:返回数据集合的总数
+data:返回的数据对象
+errorCode:后台约定的错误代码，只有需要前台业务逻辑处理的才返回，无逻辑处理则不返回
+type：标识错误类型，冗余字段
+
+
+4.批量删除${table.tableAlias}
+请求url:
+HealthInquiry/${className}/batchDelete
+
+请求params:
+request.getParameterValues("<#list table.pkColumns as column>${column.columnNameLower}</#list>s");//主键ID集合
+成功返回：
+{
+    "successful": true,
+    "resultMsg": "删除成功",
+    "total":"1",  
+    "data": [{
+        <#list table.pkColumns as column>
+        "${column.columnNameLower}":"${column.columnAlias}"
+        </#list>
+    }]
+}
+
+错误返回：
+{
+    "successful":false,
+    "resultMsg":"删除失败，失败原因：n",
+    "data":{errorCode:10001},
+    "type":"error"
+}
+
+字段说明：
+successful:请求成功或失败的标识，成功为true,失败为false
+resultMsg:请求失败的后台提示信息
+total:返回数据集合的总数
+data:返回的数据对象
+errorCode:后台约定的错误代码，只有需要前台业务逻辑处理的才返回，无逻辑处理则不返回
+type：标识错误类型，冗余字段
+
+5. 通过ID删除${table.tableAlias}
+请求url:
+HealthInquiry/${className}/delete
+
+请求params:
+request.getParameter("<#list table.pkColumns as column>${column.columnNameLower}</#list>");//主键ID
+成功返回：
+{
+    "successful": true,
+    "resultMsg": "删除成功",
+    "total":"1",  
+    "data": {
+        <#list table.pkColumns as column>
+        "${column.columnNameLower}":"${column.columnAlias}"
+        </#list>
+    }
+}
+
+错误返回：
+{
+    "successful":false,
+    "resultMsg":"删除失败，失败原因：n",
+    "data":{errorCode:10001},
+    "type":"error"
+}
+
+字段说明：
+successful:请求成功或失败的标识，成功为true,失败为false
+resultMsg:请求失败的后台提示信息
+total:返回数据集合的总数
+data:返回的数据对象
+errorCode:后台约定的错误代码，只有需要前台业务逻辑处理的才返回，无逻辑处理则不返回
+type：标识错误类型，冗余字段

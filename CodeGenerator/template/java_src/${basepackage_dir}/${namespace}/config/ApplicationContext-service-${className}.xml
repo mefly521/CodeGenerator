@@ -1,0 +1,14 @@
+<#include "/custom.include">
+<#include "/java_copyright.include">
+<#assign className = table.className>   
+<#assign classNameLower = className?uncap_first>
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
+	
+	<bean id="${classNameLower}Service" class="com.ego.${namespace}.service.impl.${className}ServiceImpl">
+		<property name="${classNameLower}Mapper" ref="${classNameLower}Mapper"/>
+	</bean>
+	
+</beans>
